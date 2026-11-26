@@ -393,27 +393,33 @@ function qrUrl(amount, info) {
   return 'https://img.vietqr.io/image/' + encodeURIComponent(s.ngan_hang) + '-' + encodeURIComponent(s.stk) + '-compact2.png?amount=' + amount + '&addInfo=' + encodeURIComponent(info) + '&accountName=' + encodeURIComponent(noAccent(s.chu_tk || ''));
 }
 function payInfo() { return noAccent('CL ' + nm(ME) + ' ' + S.dot.ten.replace('Đợt từ ', '')); }
-function openPay(amount) {
-  var s = S.settings, H = nm(hub()), info = payInfo(), q = qrUrl(amount, info);
+function openPay(amount, den) {
+  var s = S.settings, H = hub(); den = den || H; window._payDue = window._payDue || amount; if (den === H) window._payDue = amount;
+  var toHub = den === H, info = payInfo(), q = toHub ? qrUrl(amount, info) : '';
   var bank = BANKS.filter(function (b) { return b[0] === s.ngan_hang; })[0];
-  var h = '<div class="card" style="text-align:center;padding:14px"><div class="muted small">Chuyển cho ' + esc(H) + '</div><div style="font-size:30px;font-weight:700">' + d(amount) + '</div>';
+  var opts = active().filter(function (m) { return m.id !== ME; }).map(function (m) { var b = bal(m.id).bal; return '<option value="' + m.id + '"' + (m.id === den ? ' selected' : '') + '>' + esc(m.ten) + (m.id === H ? ' (giữ tiền nhóm)' : b > 0 ? ' (đang được nhận ' + vnd(b) + ')' : '') + '</option>'; }).join('');
+  var h = '<div class="lbl" style="margin-top:0">Chuyển cho ai?</div><select class="inp" id="payTo" onchange="openPay(window._payDue, this.value)">' + opts + '</select>';
+  if (!toHub) h += '<p class="help">Bạn trả thẳng cho ' + esc(nm(den)) + ' thay vì qua ' + esc(nm(H)) + '. App sẽ tự trừ nợ của bạn và cộng cho ' + esc(nm(den)) + ' sau khi quản trị xác nhận.</p>';
+  h += '<div class="card" style="text-align:center;padding:14px;margin-top:10px"><div class="muted small">Chuyển cho ' + esc(nm(den)) + '</div><div style="font-size:30px;font-weight:700">' + d(amount) + '</div>';
   if (q) {
     h += '<img class="qr" src="' + q + '" alt="Mã QR chuyển khoản">';
     h += '<div class="row" style="gap:8px;margin-top:4px"><a class="btn btn-s" style="min-height:42px;font-size:14px;text-decoration:none" href="' + q + '" target="_blank">Mở ảnh QR để lưu</a><button class="btn btn-s" style="min-height:42px;font-size:14px" onclick="copyText(\'' + esc(s.stk) + '\',\'Đã chép số tài khoản\')">Chép số TK</button></div>';
     h += '<p class="help">Cách 1: Lưu ảnh QR → app ngân hàng → Quét QR → chọn ảnh từ thư viện.<br>Cách 2: Chép số TK, dán vào app ngân hàng.</p>';
-  } else h += '<div class="banner" style="margin-top:12px;text-align:left">ℹ️ ' + esc(H) + ' chưa nhập số tài khoản vào app. Chuyển như mọi khi, xong quay lại báo nhé.</div>';
+  } else if (toHub) h += '<div class="banner" style="margin-top:12px;text-align:left">ℹ️ ' + esc(nm(H)) + ' chưa nhập số tài khoản vào app. Chuyển như mọi khi, xong quay lại báo nhé.</div>';
+  else h += '<p class="help">Hỏi ' + esc(nm(den)) + ' số tài khoản rồi chuyển như bình thường.</p>';
   h += '</div>';
-  if (s.stk) {
+  if (toHub && s.stk) {
     h += '<div class="card"><div class="kv"><span>Ngân hàng</span><b>' + esc(bank ? bank[1] : s.ngan_hang) + '</b></div><div class="kv"><span>Số tài khoản</span><b>' + esc(s.stk) + '</b></div>' + (s.chu_tk ? '<div class="kv"><span>Chủ tài khoản</span><b>' + esc(s.chu_tk) + '</b></div>' : '') + '<div class="kv"><span>Nội dung</span><b>' + esc(info) + ' <button class="mini" onclick="copyText(\'' + esc(info) + '\',\'Đã chép nội dung\')">Chép</button></b></div></div>';
   }
   h += '<div class="lbl">Số tiền bạn đã chuyển (chuyển một phần cũng được)</div><div class="money"><input id="payAmt" inputmode="numeric" value="' + vnd(amount) + '" oninput="fmtInput(this)"><span>đ</span></div>';
-  sheet('Chuyển tiền cho ' + esc(H), h, '<button class="btn btn-p" onclick="baoChuyen()">Báo đã chuyển tiền</button><p class="help" style="text-align:center">Bấm sau khi chuyển xong. ' + esc(H) + ' sẽ xác nhận khi thấy tiền về.</p>');
+  sheet('Chuyển tiền', h, '<button class="btn btn-p" onclick="baoChuyen()">Báo đã chuyển tiền</button><p class="help" style="text-align:center">Bấm sau khi chuyển xong. Quản trị sẽ xác nhận khi kiểm tra xong.</p>');
 }
 function fmtInput(el) { var n = String(el.value).replace(/\D/g, '').replace(/^0+/, ''); el.value = n ? vnd(Number(n)) : ''; }
 function numOf(id) { return Number(String(document.getElementById(id).value).replace(/\D/g, '')) || 0; }
 async function baoChuyen() {
   var amt = numOf('payAmt'); if (!amt) { toast('Nhập số tiền đã chuyển'); return; }
-  var r = await act('baoChuyen', { so_tien: amt, chieu: 'chuyen', req_id: 'r' + Date.now() + DEV }, 'Đã báo ' + nm(hub()) + ', chờ xác nhận');
+  var den = (document.getElementById('payTo') || {}).value || hub();
+  var r = await act('baoChuyen', { so_tien: amt, chieu: 'chuyen', den: den, req_id: 'r' + Date.now() + DEV }, 'Đã báo, chờ xác nhận');
   if (r) closeSheet();
 }
 async function baoNhan(amt) {
@@ -691,7 +697,7 @@ function aXacNhan() {
   var list = S.thanhtoan.filter(function (t) { return t.trang_thai === 'cho'; });
   var h = '<p class="help" style="margin-top:0">Kiểm tra tài khoản ngân hàng rồi bấm <b>Xác nhận</b>. Chưa thấy tiền thì cứ để đó, ngân hàng có khi chậm.</p>';
   if (!list.length) h += '<div class="card empty"><div class="e">🎉</div>Không có khoản nào đang chờ xác nhận.</div>';
-  else { h += '<div class="card" style="padding:4px 16px">'; list.forEach(function (t) { var vao = t.den === hub(), who = vao ? t.tu : t.den; h += '<div class="li">' + avHtml(who) + '<div class="mid"><div class="t1">' + esc(nm(who)) + (vao ? ' đã chuyển' : ' báo đã nhận lại') + '</div><div style="font-weight:700;font-size:18px">' + d(t.so_tien) + '</div><div class="t2" style="white-space:normal">Báo lúc ' + esc(t.tao_luc.slice(11, 16)) + ', ' + dshow(t.ngay).toLowerCase() + '</div></div><div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end"><button class="mini" style="background:var(--g);color:#fff;padding:10px 16px;font-size:14px" onclick="xacNhan(\'' + t.id + '\')">Xác nhận</button><button class="link small" style="color:var(--tx2)" onclick="huyTT(\'' + t.id + '\')">Từ chối</button></div></div>'; }); h += '</div>'; }
+  else { h += '<div class="card" style="padding:4px 16px">'; list.forEach(function (t) { var vao = t.den === hub(), ve = t.tu === hub(), who = ve ? t.den : t.tu; h += '<div class="li">' + avHtml(who) + '<div class="mid"><div class="t1" style="white-space:normal">' + esc(nm(who)) + (vao ? ' đã chuyển' : ve ? ' báo đã nhận lại' : ' đã chuyển cho ' + esc(nm(t.den))) + '</div><div style="font-weight:700;font-size:18px">' + d(t.so_tien) + '</div><div class="t2" style="white-space:normal">Báo lúc ' + esc(t.tao_luc.slice(11, 16)) + ', ' + dshow(t.ngay).toLowerCase() + '</div></div><div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end"><button class="mini" style="background:var(--g);color:#fff;padding:10px 16px;font-size:14px" onclick="xacNhan(\'' + t.id + '\')">Xác nhận</button><button class="link small" style="color:var(--tx2)" onclick="huyTT(\'' + t.id + '\')">Từ chối</button></div></div>'; }); h += '</div>'; }
   sheet('Xác nhận tiền đã nhận', h, null, "av('home')");
 }
 async function xacNhan(id) { if (await act('xacNhan', { id: id }, 'Đã xác nhận ✓')) renderAdmin(); }
