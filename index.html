@@ -521,7 +521,12 @@ function memDetail(id) {
   sheet(esc(nm(id)), h);
 }
 function zaloNhom(title) {
-  var H = hub(), t = '🏸 ' + (title || (S.settings.ten_nhom + ' – ' + S.dot.ten).toUpperCase()) + '\n💰 Người giữ tiền: ' + nm(H) + '\n';
+  var H = hub(), st = S.settings, t = '🏸 ' + (title || st.ten_nhom || 'Hội cầu lông').toUpperCase() + '\n💰 Người giữ tiền: ' + nm(H) + '\n';
+  if (st.stk) {
+    var bk = BANKS.filter(function (b) { return b[0] === st.ngan_hang; })[0];
+    t += '💳 ' + (bk ? bk[1] : st.ngan_hang) + ' – ' + st.stk + (st.chu_tk ? ' – ' + st.chu_tk : '') + '\n';
+    if (st.ngan_hang) t += '📷 Mã QR: https://img.vietqr.io/image/' + st.ngan_hang + '-' + st.stk + '-compact2.png' + (st.chu_tk ? '?accountName=' + encodeURIComponent(noAccent(st.chu_tk)) : '') + '\n';
+  }
   var due = [], get = [], ok = [];
   S.members.forEach(function (m) { if (m.id === H) return; var b = bal(m.id).bal; if (b < 0) due.push([m, -b]); else if (b > 0) get.push([m, b]); else if (m.dang_choi) ok.push(m.ten); });
   if (due.length) { t += '\n👉 Chuyển ' + nm(H) + ':\n'; due.forEach(function (x) { t += '• ' + x[0].ten + ': ' + vnd(x[1]) + 'đ\n'; }); }
