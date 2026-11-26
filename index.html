@@ -31,7 +31,8 @@ input,select{font:inherit;color:inherit}
 .icon-btn .dot{position:absolute;margin:-18px 0 0 18px;width:9px;height:9px;border-radius:50%;background:var(--red);border:2px solid #fff}
 .wrap{padding:0 16px}
 .card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:12px}
-.hello{font-size:14px;color:var(--tx2);margin:2px 2px 10px;display:flex;justify-content:space-between;align-items:center}
+.hello{font-size:18px;color:var(--tx2);margin:4px 2px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hello b{font-size:20px}
 .link{color:var(--g2);font-weight:600;font-size:13.5px}
 .hero{border-radius:18px;padding:18px;margin-bottom:12px;text-align:left}
 .hero .lb{font-size:14px;font-weight:500}
@@ -333,7 +334,7 @@ function render() {
   if (!S) return;
   if (!TAB) TAB = ME ? (LS.getItem('cl_tab') || 'toi') : 'nhom';
   document.getElementById('gname').textContent = S.settings.ten_nhom || 'Hội cầu lông';
-  document.getElementById('dname').textContent = S.dot.ten.replace(/\/\d{4}$/, '') + ' · ' + nm(hub()) + ' giữ tiền';
+  document.getElementById('dname').textContent = S.dot.ten.replace(/\/\d{4}$/, '') + ' · ' + nm(hub()) + ' chi tiền';
   [].forEach.call(document.querySelectorAll('.tab'), function (b) { b.className = 'tab' + (b.getAttribute('data-t') === TAB ? ' on' : ''); });
   var pend = S.thanhtoan.filter(function (t) { return t.trang_thai === 'cho'; }).length;
   document.getElementById('adminDot').style.display = pend ? 'block' : 'none';
@@ -360,7 +361,7 @@ function viewToi() {
     var thu = 0, tra = 0, pend = 0, pendAmt = 0;
     S.members.forEach(function (m) { if (m.id === hub()) return; var x = bal(m.id); if (x.bal < 0) thu += -x.bal; if (x.bal > 0) tra += x.bal; });
     S.thanhtoan.forEach(function (t) { if (t.trang_thai === 'cho') { pend++; pendAmt += t.so_tien; } });
-    h += '<div class="hero hub"><div class="lb">Bạn đang giữ tiền của nhóm</div><div class="row3"><div><span>Còn phải thu</span><b>' + d(thu) + '</b></div><div><span>Còn phải trả</span><b>' + d(tra) + '</b></div><div><span>Thu ròng</span><b>' + d(thu - tra) + '</b></div></div><div class="sub" style="margin-top:8px">Thu ròng = còn phải thu − còn phải trả. Không phải số tiền bạn đang cầm.</div>';
+    h += '<div class="hero hub"><div class="lb">Bạn đang chi tiền cho nhóm</div><div class="row3"><div><span>Còn phải thu</span><b>' + d(thu) + '</b></div><div><span>Còn phải trả</span><b>' + d(tra) + '</b></div><div><span>Thu ròng</span><b>' + d(thu - tra) + '</b></div></div><div class="sub" style="margin-top:8px">Thu ròng = còn phải thu − còn phải trả. Không phải số tiền bạn đang cầm.</div>';
     if (pend) h += '<button class="btn" style="background:#fff;color:var(--g);margin-top:12px" onclick="openAdmin(\'xn\')">' + pend + ' khoản chờ bạn xác nhận</button>';
     h += '</div>';
   } else if (b.bal < 0) {
@@ -442,7 +443,7 @@ function renderPay() {
   Object.keys(PAY.extra).forEach(function (i) { total += PAY.extra[i]; });
   var info = payInfo(PAY.mine ? ids : ids.slice(1)), q = toHub && total ? qrUrl(total, info) : '';
   var bank = BANKS.filter(function (b) { return b[0] === s.ngan_hang; })[0];
-  var opts = active().filter(function (m) { return m.id !== ME; }).map(function (m) { var b = bal(m.id).bal; return '<option value="' + m.id + '"' + (m.id === den ? ' selected' : '') + '>' + esc(m.ten) + (m.id === H ? ' (giữ tiền nhóm)' : b > 0 ? ' (đang được nhận ' + vnd(b) + ')' : '') + '</option>'; }).join('');
+  var opts = active().filter(function (m) { return m.id !== ME; }).map(function (m) { var b = bal(m.id).bal; return '<option value="' + m.id + '"' + (m.id === den ? ' selected' : '') + '>' + esc(m.ten) + (m.id === H ? ' (chi tiền nhóm)' : b > 0 ? ' (đang được nhận ' + vnd(b) + ')' : '') + '</option>'; }).join('');
   var h = '<div class="lbl" style="margin-top:0">Chuyển cho ai?</div><select class="inp" id="payTo" onchange="PAY.den=this.value;PAY.mine=numOf(\'payAmt\');renderPay()">' + opts + '</select>';
   if (!toHub) h += '<p class="help">Bạn trả thẳng cho ' + esc(nm(den)) + ' thay vì qua ' + esc(nm(H)) + '. Quản trị xác nhận xong, app tự trừ nợ và cộng cho ' + esc(nm(den)) + '.</p>';
   var cand = S.members.filter(function (m) { return m.id !== ME && m.id !== den && dueOf(m.id) > 0; });
@@ -561,7 +562,7 @@ function viewNhom() {
     if (!m.dang_choi && !x.bal && !x.pendingOut) return;
     if (x.bal < 0) thu += -x.bal; if (x.bal > 0) tra += x.bal; rows.push(m);
   });
-  h += '<div class="card"><div class="row" style="gap:12px">' + avHtml(H) + '<div><div style="font-weight:700">' + esc(nm(H)) + ' đang giữ tiền nhóm</div><div class="small muted">Cần thu ' + d(thu) + ' · cần trả ' + d(tra) + '</div></div></div></div>';
+  h += '<div class="card"><div class="row" style="gap:12px">' + avHtml(H) + '<div><div style="font-weight:700">' + esc(nm(H)) + ' đang chi tiền nhóm</div><div class="small muted">Cần thu ' + d(thu) + ' · cần trả ' + d(tra) + '</div></div></div></div>';
   var due = rows.filter(function (m) { return bal(m.id).bal < 0; }).sort(function (a, b) { return bal(a.id).bal - bal(b.id).bal; });
   var get = rows.filter(function (m) { return bal(m.id).bal > 0; }).sort(function (a, b) { return bal(b.id).bal - bal(a.id).bal; });
   var done = rows.filter(function (m) { return !bal(m.id).bal; });
@@ -588,7 +589,7 @@ function memDetail(id) {
   sheet(esc(nm(id)), h);
 }
 function zaloNhom(title) {
-  var H = hub(), st = S.settings, t = '🏸 ' + (title || st.ten_nhom || 'Hội cầu lông').toUpperCase() + '\n💰 Người giữ tiền: ' + nm(H) + '\n';
+  var H = hub(), st = S.settings, t = '🏸 ' + (title || st.ten_nhom || 'Hội cầu lông').toUpperCase() + '\n💰 Người chi tiền: ' + nm(H) + '\n';
   if (st.stk) {
     var bk = BANKS.filter(function (b) { return b[0] === st.ngan_hang; })[0];
     t += '💳 ' + (bk ? bk[1] : st.ngan_hang) + ' – ' + st.stk + (st.chu_tk ? ' – ' + st.chu_tk : '') + '\n';
@@ -699,7 +700,7 @@ function listDots() {
 }
 async function viewDot(id) {
   busy(true, 'Đang tải…'); var r; try { r = await call('dotCu', { id: id }); } catch (e) { busy(false); alertBox('Chưa được', e.message); return; } busy(false);
-  var t = r.tom_tat || {}, b = t.balances || {}, h = '<div class="card"><div class="kv"><span>Tổng chi</span><b>' + d((t.totals || {}).tong || 0) + '</b></div><div class="kv"><span>Người giữ tiền</span><b>' + esc(nm(r.dot.dau_moi)) + '</b></div>' + (t.nguoi_chot ? '<div class="kv"><span>Chốt bởi</span><b>' + esc(M(t.nguoi_chot) ? nm(t.nguoi_chot) : t.nguoi_chot) + '</b></div>' : '') + '</div>';
+  var t = r.tom_tat || {}, b = t.balances || {}, h = '<div class="card"><div class="kv"><span>Tổng chi</span><b>' + d((t.totals || {}).tong || 0) + '</b></div><div class="kv"><span>Người chi tiền</span><b>' + esc(nm(r.dot.dau_moi)) + '</b></div>' + (t.nguoi_chot ? '<div class="kv"><span>Chốt bởi</span><b>' + esc(M(t.nguoi_chot) ? nm(t.nguoi_chot) : t.nguoi_chot) + '</b></div>' : '') + '</div>';
   h += '<div class="sec"><span>Số dư lúc chốt</span></div><div class="card" style="padding:4px 16px">';
   Object.keys(b).forEach(function (i) { var x = b[i]; if (!x.share && !x.paid) return; h += '<div class="li">' + avHtml(i) + '<div class="mid"><div class="t1">' + esc(nm(i)) + '</div><div class="t2">Chịu ' + d(x.share) + (x.paid ? ' · trả hộ ' + d(x.paid) : '') + '</div></div><div class="r ' + (x.bal < 0 ? 'red' : x.bal > 0 ? 'ok' : 'muted') + '">' + (x.bal ? d(Math.abs(x.bal)) : 'xong') + '</div></div>'; });
   h += '</div><div class="sec"><span>' + r.khoan.length + ' khoản chi</span></div><div class="card" style="padding:4px 16px">';
@@ -790,7 +791,7 @@ function aThanhVien() {
   var h = '<div class="card"><div class="lbl" style="margin-top:0">Thêm người mới</div><div class="row"><input class="inp" id="newName" maxlength="24" placeholder="Tên, VD: Tuấn"><button class="btn btn-p" style="flex:none;width:auto" onclick="themTV()">Thêm</button></div><label class="row small" style="margin-top:10px;gap:10px"><label class="sw"><input type="checkbox" id="newGop"><span></span></label><span style="flex:1">Người này có góp tiền cầu</span></label></div>';
   var gop = active().filter(function (m) { return m.gop_cau; }).length;
   h += '<div class="sec"><span>Đang chơi (' + active().length + ')</span><span>' + gop + ' người góp cầu</span></div><p class="help" style="margin:-4px 4px 8px">Bật <b>Góp cầu</b> = khi mua cầu, người đó được chọn sẵn để chia. Đổi ở đây không làm thay đổi tiền các lần mua cũ.</p><div class="card" style="padding:4px 16px">';
-  active().forEach(function (m) { h += '<div class="li">' + avHtml(m.id) + '<div class="mid"><div class="t1">' + esc(m.ten) + (m.id === hub() ? ' <span class="pill ok" style="padding:1px 8px">giữ tiền</span>' : '') + '</div><div class="t2">' + (m.gop_cau ? 'Có góp tiền cầu' : 'Không góp tiền cầu') + '</div></div><button class="icon-btn" style="box-shadow:none;width:36px;height:36px;font-size:20px" onclick="tvMenu(\'' + m.id + '\')" aria-label="Thêm thao tác">⋯</button><div style="text-align:center"><label class="sw"><input type="checkbox" ' + (m.gop_cau ? 'checked' : '') + ' onchange="gopCau(\'' + m.id + '\',this.checked)"><span></span></label><div class="small muted" style="font-size:11px">Góp cầu</div></div></div>'; });
+  active().forEach(function (m) { h += '<div class="li">' + avHtml(m.id) + '<div class="mid"><div class="t1">' + esc(m.ten) + (m.id === hub() ? ' <span class="pill ok" style="padding:1px 8px">chi tiền</span>' : '') + '</div><div class="t2">' + (m.gop_cau ? 'Có góp tiền cầu' : 'Không góp tiền cầu') + '</div></div><button class="icon-btn" style="box-shadow:none;width:36px;height:36px;font-size:20px" onclick="tvMenu(\'' + m.id + '\')" aria-label="Thêm thao tác">⋯</button><div style="text-align:center"><label class="sw"><input type="checkbox" ' + (m.gop_cau ? 'checked' : '') + ' onchange="gopCau(\'' + m.id + '\',this.checked)"><span></span></label><div class="small muted" style="font-size:11px">Góp cầu</div></div></div>'; });
   h += '</div>';
   var hid = S.members.filter(function (m) { return !m.dang_choi; });
   if (hid.length) { h += '<div class="sec"><span>Đã ẩn (' + hid.length + ')</span></div><p class="help" style="margin:-4px 4px 8px">Người đã ẩn không hiện để chọn nữa, nhưng tiền cũ vẫn giữ nguyên.</p><div class="card" style="padding:4px 16px">'; hid.forEach(function (m) { var b = bal(m.id).bal; h += '<div class="li">' + avHtml(m.id) + '<div class="mid"><div class="t1 muted">' + esc(m.ten) + '</div><div class="t2">' + (b ? (b < 0 ? 'Còn nợ ' : 'Được nhận ') + d(Math.abs(b)) : 'Không còn tiền treo') + '</div></div><button class="mini" onclick="anTV(\'' + m.id + '\',true)">Hiện lại</button></div>'; }); h += '</div>'; }
@@ -804,7 +805,7 @@ async function anTV(id, show) {
   if (await act('luuThanhVien', { id: id, dang_choi: show }, show ? 'Đã hiện lại' : 'Đã ẩn')) renderAdmin();
 }
 function tvMenu(id) {
-  dialog('<h3 style="margin:0 0 12px;font-size:17px">' + esc(nm(id)) + '</h3><button class="btn btn-s" onclick="closeDlg();doiTen(\'' + id + '\')">✏️ Đổi tên</button>' + (id !== hub() ? '<button class="btn btn-s" style="margin-top:8px" onclick="closeDlg();anTV(\'' + id + '\',false)">🙈 Ẩn (nghỉ chơi, giữ tiền cũ)</button>' : '<p class="help">Người đang giữ tiền không ẩn được. Đổi người giữ tiền khi chốt sổ.</p>') + '<button class="btn btn-ghost" style="margin-top:6px" onclick="closeDlg()">Đóng</button>');
+  dialog('<h3 style="margin:0 0 12px;font-size:17px">' + esc(nm(id)) + '</h3><button class="btn btn-s" onclick="closeDlg();doiTen(\'' + id + '\')">✏️ Đổi tên</button>' + (id !== hub() ? '<button class="btn btn-s" style="margin-top:8px" onclick="closeDlg();anTV(\'' + id + '\',false)">🙈 Ẩn (nghỉ chơi, giữ tiền cũ)</button>' : '<p class="help">Người đang chi tiền không ẩn được. Đổi người chi tiền khi chốt sổ.</p>') + '<button class="btn btn-ghost" style="margin-top:6px" onclick="closeDlg()">Đóng</button>');
 }
 function doiTen(id) {
   dialog('<h3 style="margin:0 0 10px;font-size:17px">Đổi tên</h3><input class="inp" id="rn" maxlength="24" value="' + esc(nm(id)) + '"><div class="btns"><button class="btn btn-s" onclick="closeDlg()">Thôi</button><button class="btn btn-p" onclick="luuTen(\'' + id + '\')">Lưu</button></div>');
@@ -861,14 +862,14 @@ function aChot() {
   if (owe.length) h += '<div class="grid2" style="margin-top:10px"><div class="sum" style="margin:0"><div class="small muted">Còn nợ, mang sang</div><b class="red">' + d(tNo) + '</b></div><div class="sum" style="margin:0"><div class="small muted">Còn được nhận</div><b class="ok">' + d(tNhan) + '</b></div></div><div class="small muted" style="margin-top:6px">' + owe.length + ' người còn số dư</div>';
   if (owe.length) { h += '<div class="lbl">Chi tiết sẽ mang sang đợt mới</div>'; owe.forEach(function (m) { var b = bal(m.id).bal; h += '<div class="kv"><span>' + esc(m.ten) + '</span><b class="' + (b < 0 ? 'red' : 'ok') + '">' + (b < 0 ? 'còn nợ ' : 'được nhận ') + d(Math.abs(b)) + '</b></div>'; }); }
   else h += '<div class="pill ok" style="margin-top:6px">✓ Mọi người đã thanh toán xong</div>';
-  h += '<div class="lbl">Đợt mới ai giữ tiền?</div><select class="inp" id="newHub">' + active().map(function (m) { return '<option value="' + m.id + '"' + (m.id === H ? ' selected' : '') + '>' + esc(m.ten) + (m.id === H ? ' (như cũ)' : '') + '</option>'; }).join('') + '</select><p class="help">Nếu đổi người giữ tiền: số tiền ' + esc(nm(H)) + ' đang giữ sẽ hiện thành khoản cần bàn giao trong đợt mới.</p>';
+  h += '<div class="lbl">Đợt mới ai chi tiền?</div><select class="inp" id="newHub">' + active().map(function (m) { return '<option value="' + m.id + '"' + (m.id === H ? ' selected' : '') + '>' + esc(m.ten) + (m.id === H ? ' (như cũ)' : '') + '</option>'; }).join('') + '</select><p class="help">Nếu đổi người chi tiền: số tiền ' + esc(nm(H)) + ' đang giữ sẽ hiện thành khoản cần bàn giao trong đợt mới.</p>';
   h += '<button class="btn btn-p" style="margin-top:12px" ' + (pend ? 'disabled' : '') + ' onclick="chotSo()">Chốt sổ đợt này</button></div>';
   if (S.dots.length) h += '<button class="btn btn-ghost" onclick="listDots()">Xem các đợt trước (' + S.dots.length + ')</button>';
   sheet('Chốt sổ', h, null, "av('home')");
 }
 async function chotSo() {
   var nh = document.getElementById('newHub').value;
-  if (!(await ask('Chốt sổ ' + esc(S.dot.ten) + '?', 'Không hoàn tác được. Số dư mọi người sẽ mang sang đợt mới' + (nh !== hub() ? ', người giữ tiền đổi thành <b>' + esc(nm(nh)) + '</b>' : '') + '.', 'Chốt sổ', 'Thôi', true))) return;
+  if (!(await ask('Chốt sổ ' + esc(S.dot.ten) + '?', 'Không hoàn tác được. Số dư mọi người sẽ mang sang đợt mới' + (nh !== hub() ? ', người chi tiền đổi thành <b>' + esc(nm(nh)) + '</b>' : '') + '.', 'Chốt sổ', 'Thôi', true))) return;
   var summary = zaloNhom('CHỐT SỔ ' + S.dot.ten.toUpperCase());
   var r = await act('chotSo', { dot_id: S.dot.id, dau_moi_moi: nh }, null, 'Đang chốt sổ…');
   if (!r) return;
