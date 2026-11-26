@@ -612,10 +612,8 @@ function lastSan(day) {
 }
 function defaultChia(lid, day) {
   var l = L(lid), o = {};
-  if (l.quy_tac === 'gop_cau') { S.members.forEach(function (m) { if (m.dang_choi && m.gop_cau) o[m.id] = 1; }); return [o, 'Đã chọn sẵn những người góp tiền cầu'] ; }
-  if (l.quy_tac === 'buoi_truoc') { var s = lastSan(); if (s) { Object.keys(s.chia).forEach(function (i) { if (M(i) && M(i).dang_choi) o[i] = 1; }); return [o, 'Đã chọn sẵn người đánh buổi ' + dshow(s.ngay).toLowerCase()]; } return [o, '']; }
-  if (l.quy_tac === 'theo_san') { var s2 = lastSan(day); if (s2) { Object.keys(s2.chia).forEach(function (i) { o[i] = 1; }); return [o, 'Đã chọn sẵn người đánh buổi ' + dshow(s2.ngay).toLowerCase()]; } return [o, '']; }
-  return [o, ''];
+  if (l.quy_tac === 'gop_cau') { S.members.forEach(function (m) { if (m.dang_choi && m.gop_cau) o[m.id] = 1; }); return [o, 'Đã chọn sẵn những người góp tiền cầu']; }
+  return [o, 'Bấm vào tên những người cùng chia khoản này.'];
 }
 function openAdd(id) {
   if (!ME) { pickMe('add'); return; }
