@@ -95,9 +95,16 @@ input,select{font:inherit;color:inherit}
 .tab.on{color:var(--g)}
 .ov{position:fixed;inset:0;z-index:40;background:rgba(17,24,39,.45);display:flex;align-items:flex-end;justify-content:center}
 .ov.hide{display:none}
-.panel{background:var(--bg);width:100%;max-width:480px;max-height:94vh;border-radius:20px 20px 0 0;display:flex;flex-direction:column;animation:up .22s ease-out}
+.panel{background:var(--bg);width:100%;max-width:480px;max-height:88vh;max-height:88dvh;border-radius:20px 20px 0 0;display:flex;flex-direction:column;animation:up .22s ease-out}
 .panel.noanim{animation:none}
-@keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.ov{transition:background .22s ease}
+.ov.closing{background:rgba(17,24,39,0)}
+.panel{transition:transform .22s cubic-bezier(.2,.8,.2,1);will-change:transform;touch-action:pan-y}
+.ov.closing .panel{transform:translateY(100%)}
+.panel.dragging{transition:none}
+.grab{width:42px;height:5px;border-radius:99px;background:#d1d5db;position:absolute;left:50%;top:6px;transform:translateX(-50%)}
+.ph{position:relative;touch-action:none}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
 .ph{display:flex;align-items:center;gap:8px;padding:14px 12px 10px 16px;border-bottom:1px solid var(--line);background:#fff;border-radius:20px 20px 0 0}
 .ph h3{margin:0;font-size:17px;flex:1}
 .pb{padding:14px 16px 20px;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -210,7 +217,7 @@ var API = 'https://script.google.com/macros/s/AKfycbw4KkSpXCYgrCT9czfvI43i-QSDEi
 var IN_GAS = !!(window.google && google.script && google.script.run);
 var APP_URL = IN_GAS ? '' : location.origin + location.pathname;
 function call(fn, args) {
-  var a = Object.assign({ device: DEV, me: ME, token: TOK }, args || {});
+  var a = Object.assign({ device: DEV, me: ME, token: TOK, app_url: APP_URL || (S && S.url) || '' }, args || {});
   var done = function (r) { var o = JSON.parse(r); if (o.ok) return o.data; throw new Error(o.error); };
   if (IN_GAS) return new Promise(function (res, rej) {
     google.script.run.withSuccessHandler(function (r) { try { res(done(r)); } catch (e) { rej(e); } })
@@ -276,16 +283,49 @@ function ask(title, body, ok, cancel, danger) {
   return new Promise(function (res) { _dlgRes = res;
     dialog('<h3 style="margin:0 0 6px;font-size:17px">' + title + '</h3><div class="muted" style="font-size:14.5px">' + body + '</div><div class="btns"><button class="btn btn-s" onclick="closeDlg(false)">' + (cancel || 'Thôi') + '</button><button class="btn ' + (danger ? 'btn-red' : 'btn-p') + '" onclick="closeDlg(true)">' + (ok || 'Đồng ý') + '</button></div>'); });
 }
+function alertHtml(title, html) { return new Promise(function (res) { _dlgRes = res; dialog('<h3 style="margin:0 0 6px;font-size:17px">' + title + '</h3><div class="muted" style="font-size:14.5px">' + html + '</div><div style="margin-top:14px"><button class="btn btn-p" onclick="closeDlg(true)">Đã hiểu</button></div>'); }); }
 function alertBox(title, body) { return new Promise(function (res) { _dlgRes = res; dialog('<h3 style="margin:0 0 6px;font-size:17px">' + title + '</h3><div class="muted" style="font-size:14.5px">' + esc(body) + '</div><div style="margin-top:14px"><button class="btn btn-p" onclick="closeDlg(true)">Đã hiểu</button></div>'); }); }
 function sheet(title, body, foot, back) {
-  var pn = document.getElementById('panel'), isOpen = document.getElementById('ov').className === 'ov', oldPb = document.getElementById('pb');
+  var ovEl = document.getElementById('ov'); if (ovEl.className === 'ov closing') { clearTimeout(ovEl._t); ovEl.className = 'ov hide'; }
+  var pn = document.getElementById('panel'), isOpen = ovEl.className === 'ov', oldPb = document.getElementById('pb');
   var keep = isOpen && oldPb && pn._title === title ? oldPb.scrollTop : 0; pn._title = title;
   pn.className = 'panel' + (isOpen ? ' noanim' : '');
-  pn.innerHTML = '<div class="ph">' + (back ? '<button class="icon-btn" style="box-shadow:none;width:34px;height:34px" onclick="' + back + '" aria-label="Quay lại">‹</button>' : '') + '<h3>' + title + '</h3><button class="icon-btn" style="box-shadow:none;width:34px;height:34px;font-size:20px" onclick="closeSheet()" aria-label="Đóng">✕</button></div><div class="pb" id="pb">' + body + '</div>' + (foot ? '<div class="pf" id="pf">' + foot + '</div>' : '');
+  if (!isOpen) { try { history.pushState({ cl: 1 }, ''); } catch (e) {} }
+  pn.innerHTML = '<div class="ph"><span class="grab"></span>' + (back ? '<button class="icon-btn" style="box-shadow:none;width:34px;height:34px" onclick="' + back + '" aria-label="Quay lại">‹</button>' : '') + '<h3>' + title + '</h3><button class="icon-btn" style="box-shadow:none;width:auto;height:36px;padding:0 12px;font-size:15px;font-weight:600;background:#f3f4f6;color:var(--tx)" onclick="closeSheet()" aria-label="Đóng">✕ Đóng</button></div><div class="pb" id="pb">' + body + '</div>' + (foot ? '<div class="pf" id="pf">' + foot + '</div>' : '');
   document.getElementById('ov').className = 'ov';
   if (keep) document.getElementById('pb').scrollTop = keep;
 }
-function closeSheet() { document.getElementById('ov').className = 'ov hide'; F = null; }
+function closeSheet(fromPop) {
+  var ov = document.getElementById('ov'), pn = document.getElementById('panel'), wasOpen = ov.className === 'ov';
+  F = null;
+  if (wasOpen) { ov.className = 'ov closing'; pn.style.transform = ''; clearTimeout(ov._t); ov._t = setTimeout(function () { if (ov.className === 'ov closing') ov.className = 'ov hide'; }, 220); }
+  if (wasOpen && !fromPop) { try { if (history.state && history.state.cl) { window._skipPop = true; history.back(); } } catch (e) {} }
+}
+(function () {
+  var pn, y0 = 0, dy = 0, t0 = 0, on = false;
+  function start(e) {
+    pn = document.getElementById('panel'); var pb = document.getElementById('pb');
+    var inHead = e.target.closest && e.target.closest('.ph'), atTop = !pb || pb.scrollTop <= 0;
+    if (!inHead && !atTop) return;
+    if (e.target.closest && e.target.closest('input,select,textarea,.hscroll')) return;
+    on = true; y0 = e.touches[0].clientY; dy = 0; t0 = Date.now();
+  }
+  function move(e) {
+    if (!on) return; dy = e.touches[0].clientY - y0;
+    if (dy <= 0) { pn.classList.remove('dragging'); pn.style.transform = ''; return; }
+    pn.classList.add('dragging'); pn.style.transform = 'translateY(' + dy + 'px)'; if (e.cancelable) e.preventDefault();
+  }
+  function end() {
+    if (!on) return; on = false; pn.classList.remove('dragging');
+    var fast = dy > 40 && dy / Math.max(1, Date.now() - t0) > 0.5;
+    if (dy > 110 || fast) closeSheet(); else pn.style.transform = '';
+  }
+  var ov = document.getElementById('ov');
+  ov.addEventListener('touchstart', start, { passive: true });
+  ov.addEventListener('touchmove', move, { passive: false });
+  ov.addEventListener('touchend', end); ov.addEventListener('touchcancel', end);
+})();
+window.addEventListener('popstate', function () { if (window._skipPop) { window._skipPop = false; return; } if (document.getElementById('ov').className === 'ov') closeSheet(true); });
 
 /* ===== khung chính ===== */
 function go(t) { TAB = t; LS.setItem('cl_tab', t); render(); window.scrollTo(0, 0); }
@@ -435,8 +475,12 @@ async function baoChuyen() {
   if (PAY.mine) items.push({ tu: ME, so_tien: PAY.mine });
   Object.keys(PAY.extra).forEach(function (i) { items.push({ tu: i, so_tien: PAY.extra[i] }); });
   if (!items.length) { toast('Nhập số tiền đã chuyển'); return; }
-  var r = await act('baoChuyen', { chieu: 'chuyen', den: PAY.den, items: items, req_id: 'r' + Date.now() + DEV }, 'Đã báo, chờ xác nhận');
-  if (r) closeSheet();
+  var tong = 0; items.forEach(function (it) { tong += it.so_tien; });
+  var r = await act('baoChuyen', { chieu: 'chuyen', den: PAY.den, items: items, req_id: 'r' + Date.now() + DEV }, null);
+  if (!r) return;
+  closeSheet();
+  var D = nm(PAY.den);
+  await alertHtml('Đã báo cho ' + esc(D) + ' ✓', '<div style="text-align:center;font-size:40px;margin:4px 0">📨</div>Bạn đã báo chuyển <b>' + d(tong) + '</b>.<br><br>' + esc(D) + ' sẽ kiểm tra tài khoản và xác nhận cho bạn sau. Xác nhận xong, số nợ của bạn tự cập nhật.');
 }
 async function baoNhan(amt) {
   if (!(await ask('Đã nhận tiền?', 'Báo bạn đã nhận <b>' + d(amt) + '</b> từ ' + esc(nm(hub())) + '. ' + esc(nm(hub())) + ' xác nhận xong thì số dư mới cập nhật.', 'Báo đã nhận'))) return;
@@ -446,7 +490,7 @@ async function huyBao(id) { if (await ask('Huỷ báo chuyển?', 'Khoản báo 
 
 /* ===== tab Sổ ===== */
 function viewSo() {
-  var list = (S.isAdmin ? S.khoan : liveKhoan()).slice().sort(sortK);
+  var list = liveKhoan().slice().sort(sortK);
   var h = '<div class="card" style="display:flex;justify-content:space-between;align-items:center"><div><div class="muted small">Tổng chi đợt này</div><div style="font-size:22px;font-weight:700">' + d(S.totals.tong) + '</div></div><div style="text-align:right" class="small muted">' + liveKhoan().length + ' khoản<br>từ ' + dshow(S.dot.tu_ngay) + '</div></div>';
   if (S.totals.tong) {
     var bar = '', leg = '';
@@ -462,8 +506,15 @@ function viewSo() {
     groups[day].forEach(function (k) { h += rowKhoan(k); });
     h += '</div>';
   });
+  var del = S.khoan.filter(function (k) { return k.da_xoa; });
+  if (S.isAdmin && del.length) h += '<button class="btn btn-ghost" onclick="listDeleted()">Khoản đã xoá (' + del.length + ') · khôi phục</button>';
   if (S.dots.length) h += '<button class="btn btn-ghost" onclick="listDots()">Xem các đợt trước (' + S.dots.length + ')</button>';
   return h;
+}
+function listDeleted() {
+  var h = '<p class="help" style="margin-top:0">Các khoản đã xoá không còn tính tiền. Bấm vào để xem và khôi phục nếu xoá nhầm.</p><div class="card" style="padding:4px 16px">';
+  S.khoan.filter(function (k) { return k.da_xoa; }).sort(sortK).forEach(function (k) { h += rowKhoan(k); });
+  sheet('Khoản đã xoá', h + '</div>');
 }
 function rowKhoan(k) {
   var l = L(k.loai_id), n = Object.keys(k.chia).length, my = ME && k.chia[ME] ? alloc(k.so_tien, k.chia)[ME] : 0;
@@ -767,6 +818,15 @@ function aCaiDat() {
   h += '<div class="card"><div style="font-weight:700">🏦 Tài khoản nhận tiền của ' + esc(nm(hub())) + '</div><p class="help">Mọi người quét mã QR là có sẵn số tiền, khỏi gõ.</p><div class="lbl">Ngân hàng</div><select class="inp" id="cBank" onchange="qrPrev()"><option value="">— Chọn ngân hàng —</option>' + BANKS.map(function (b) { return '<option value="' + b[0] + '"' + (s.ngan_hang === b[0] ? ' selected' : '') + '>' + b[1] + '</option>'; }).join('') + '</select><div class="lbl">Số tài khoản</div><input class="inp" id="cStk" inputmode="numeric" value="' + esc(s.stk) + '" oninput="qrPrev()"><div class="lbl">Tên chủ tài khoản</div><input class="inp" id="cChu" value="' + esc(s.chu_tk) + '" placeholder="VD: NGUYEN VAN KHA" oninput="qrPrev()"><div id="qrp" style="text-align:center"></div></div>';
   h += '<div class="card"><label class="row" style="gap:12px"><span style="flex:1"><b>Chỉ quản trị được thêm khoản</b><br><span class="help" style="margin:0">Bật khi nhóm nhập lung tung. Bình thường để tắt cho ai trả bill tự ghi.</span></span><label class="sw"><input type="checkbox" id="cQt" ' + (s.chi_qt_nhap ? 'checked' : '') + '><span></span></label></label></div>';
   h += '<button class="btn btn-p" onclick="luuCD()">Lưu cài đặt</button>';
+  var tg = S.tg || {};
+  h += '<div class="card" style="margin-top:14px"><div style="font-weight:700">📣 Thông báo Telegram</div><p class="help">Ai báo chuyển tiền hoặc khi bạn xác nhận, bot sẽ nhắn vào nhóm Telegram.</p>';
+  h += '<div class="kv"><span>Trạng thái</span><b class="' + (tg.coMa && tg.chat ? 'ok' : 'muted') + '">' + (tg.coMa && tg.chat ? 'Đang bật · ' + esc(tg.ten || tg.chat) : tg.coMa ? 'Có mã bot, chưa chọn nhóm' : 'Chưa bật') + '</b></div>';
+  h += '<div class="lbl">Mã bot (BotFather gửi)</div><input class="inp" id="tgTok" type="password" autocomplete="off" placeholder="' + (tg.coMa ? 'Đã lưu – dán mã mới nếu muốn đổi' : 'Dán mã dạng 123456:ABC…') + '">';
+  h += '<div class="lbl">Nhóm nhận tin</div><div class="row"><input class="inp" id="tgChat" placeholder="@tennhom hoặc bấm Tìm" value="' + esc(tg.chat || '') + '"><button class="btn btn-s" style="flex:none;width:auto" onclick="timNhom()">Tìm</button></div><div id="tgList"></div>';
+  h += '<p class="help">Cách lấy nhóm: thêm bot vào nhóm (làm quản trị), nhắn 1 tin bất kỳ trong nhóm, rồi bấm <b>Tìm</b>. Nhóm công khai thì gõ luôn @tên-nhóm.</p>';
+  h += '<div class="btns"><button class="btn btn-p" onclick="luuTG()">Lưu</button><button class="btn btn-s" onclick="thuTG()">Gửi thử</button></div>';
+  if (tg.coMa) h += '<button class="btn btn-ghost" style="color:var(--red)" onclick="tatTG()">Tắt thông báo Telegram</button>';
+  h += '</div>';
   h += '<div class="sec" style="margin-top:22px"><span>Loại khoản</span></div><p class="help" style="margin:-4px 4px 8px">Đổi tên thoải mái, tiền cũ không bị ảnh hưởng. Loại không dùng nữa thì ẩn đi.</p><div class="card" style="padding:4px 16px">';
   S.loai.forEach(function (l) { h += '<div class="li">' + tagHtml(l) + '<div class="mid"><div class="t1' + (l.an ? ' muted' : '') + '">' + esc(l.ten) + (l.an ? ' (đang ẩn)' : '') + '</div><div class="t2">' + ({ buoi_truoc: 'Tự chọn người đánh buổi trước', theo_san: 'Tự chọn người đánh cùng buổi', gop_cau: 'Tự chọn người góp cầu', tu_chon: 'Tự chọn người chia' }[l.quy_tac] || '') + '</div></div><button class="mini" onclick="suaLoai(\'' + l.id + '\')">Sửa</button></div>'; });
   h += '</div><button class="btn btn-s" onclick="suaLoai()">+ Thêm loại khoản</button>';
@@ -775,6 +835,15 @@ function aCaiDat() {
 }
 function qrPrev() { var b = document.getElementById('cBank').value, s = document.getElementById('cStk').value.replace(/\s/g, ''), e = document.getElementById('qrp'); e.innerHTML = b && s.length >= 6 ? '<img class="qr" style="width:160px" src="https://img.vietqr.io/image/' + b + '-' + s + '-compact2.png?amount=10000&addInfo=THU&accountName=' + encodeURIComponent(noAccent(document.getElementById('cChu').value)) + '"><div class="help">Mã thử 10.000đ. Quét bằng app ngân hàng xem đúng tên chưa.</div>' : ''; }
 async function luuCD() { if (await act('luuCaiDat', { ten_nhom: document.getElementById('cTen').value, ngan_hang: document.getElementById('cBank').value, stk: document.getElementById('cStk').value.replace(/\s/g, ''), chu_tk: document.getElementById('cChu').value, chi_qt_nhap: document.getElementById('cQt').checked }, 'Đã lưu cài đặt')) renderAdmin(); }
+async function luuTG() { var t = document.getElementById('tgTok').value.trim(), c = document.getElementById('tgChat').value.trim(); if (!t && !c) { toast('Dán mã bot hoặc chọn nhóm'); return; } if (await act('luuTelegram', { token_bot: t, chat: c }, 'Đã lưu Telegram', 'Đang kiểm tra với Telegram…')) renderAdmin(); }
+async function thuTG() { if (await act('thuTelegram', {}, 'Đã gửi tin thử vào nhóm', 'Đang gửi…')) {} }
+async function tatTG() { if (await ask('Tắt thông báo Telegram?', 'Bot sẽ không nhắn vào nhóm nữa. Mã bot cũng bị xoá khỏi app.', 'Tắt', 'Thôi', true) && await act('luuTelegram', { xoa: true }, 'Đã tắt')) renderAdmin(); }
+async function timNhom() {
+  busy(true, 'Đang tìm nhóm…'); var r; try { r = await call('timNhomTelegram'); } catch (e) { busy(false); alertBox('Chưa được', e.message); return; } busy(false);
+  var e = document.getElementById('tgList');
+  if (!r.length) { e.innerHTML = '<p class="err">Chưa thấy nhóm nào. Nhắn 1 tin trong nhóm có bot rồi bấm Tìm lại.</p>'; return; }
+  e.innerHTML = '<div class="chips" style="margin-top:8px">' + r.map(function (g) { return '<button class="chip" onclick="document.getElementById(\'tgChat\').value=\'' + g.id + '\';[].forEach.call(this.parentNode.children,function(x){x.className=\'chip\'});this.className=\'chip on\'">' + esc(g.ten) + '</button>'; }).join('') + '</div>';
+}
 var newColor = 'gray';
 function suaLoai(id) {
   var l = id ? L(id) : { ten: '', mau: 'pink', an: false }; newColor = l.mau;
